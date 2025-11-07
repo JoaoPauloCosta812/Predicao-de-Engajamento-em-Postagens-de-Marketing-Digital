@@ -1,8 +1,3 @@
-# ==========================================================
-# 📊 Predição de Engajamento em Postagens
-# Projeto EBAC × Semantix — Marketing Digital orientado por dados
-# ==========================================================
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,16 +8,14 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor
 
-# ----------------------------------------------------------
+
 # Configurações da página
-# ----------------------------------------------------------
 st.set_page_config(page_title="Predição de Engajamento", page_icon="📊", layout="wide")
 st.markdown("# 📊 Predição de Engajamento em Postagens")
 st.caption("Projeto EBAC × Semantix — Marketing Digital orientado por dados")
 
-# ----------------------------------------------------------
+
 # Carregar dados e treinar modelo (cacheados)
-# ----------------------------------------------------------
 PROC_PATH = Path("data/processed/social_media_clean.csv")
 
 @st.cache_data
@@ -67,9 +60,8 @@ df = load_data(PROC_PATH)
 target = "likes" if "likes" in df.columns else "engagement_score"
 model, num_cols, cat_cols = train_model(df, target)
 
-# ----------------------------------------------------------
-# 🎛️ Sidebar — Parâmetros do Post (inputs essenciais)
-# ----------------------------------------------------------
+
+# Sidebar — Parâmetros do Post (inputs essenciais)
 st.sidebar.header("🎛️ Parâmetros do Post")
 
 num_hashtags = st.sidebar.slider("🔢 Número de hashtags", 0, 20, 5, 1)
@@ -85,9 +77,8 @@ day_of_week = dias_semana.index(day_of_week_human)
 media_type = media_type_human.lower()
 media_type = {"imagem":"image", "vídeo":"video", "carrossel":"carousel"}[media_type]
 
-# ----------------------------------------------------------
-# 🔄 Features derivadas automáticas (sem pedir ao usuário)
-# ----------------------------------------------------------
+
+# Features derivadas automáticas
 # caption_bins a partir de caption_length
 caption_bins = pd.cut(
     [caption_length],
@@ -102,9 +93,8 @@ periodo = pd.cut(
     labels=["madrugada", "manhã", "tarde", "noite", "tarde_da_noite"]  # antigo "late"
 )[0]
 
-# ----------------------------------------------------------
-# 🔢 DataFrame de entrada para predição
-# ----------------------------------------------------------
+
+# DataFrame de entrada para predição
 exemplo = pd.DataFrame([{
     "num_hashtags": num_hashtags,
     "caption_length": caption_length,
@@ -115,18 +105,16 @@ exemplo = pd.DataFrame([{
     "periodo": str(periodo),
 }])
 
-# ----------------------------------------------------------
-# 🧩 Garantir compatibilidade de colunas com o modelo
-# ----------------------------------------------------------
+
+# Garantir compatibilidade de colunas com o modelo
 cols_treino = num_cols + cat_cols
 for c in cols_treino:
     if c not in exemplo.columns:
         exemplo[c] = 0 if c in num_cols else ""
 exemplo = exemplo[cols_treino]
 
-# ----------------------------------------------------------
-# 📊 Predição
-# ----------------------------------------------------------
+
+# Predição
 pred = float(model.predict(exemplo)[0])
 
 col1, col2, col3 = st.columns(3)
@@ -139,9 +127,8 @@ with col3:
 
 st.divider()
 
-# ==========================================================
-# 🔍 INSIGHTS EXTRAS
-# ==========================================================
+
+# INSIGHTS EXTRAS
 st.subheader("📊 Insights da Base de Dados")
 
 colA, colB = st.columns(2)
