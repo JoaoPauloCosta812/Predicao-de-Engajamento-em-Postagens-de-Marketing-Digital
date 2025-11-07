@@ -8,10 +8,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor
 
 
+
 # Configurações da Página
 st.set_page_config(page_title="Predição de Engajamento", page_icon="📈", layout="wide")
 st.markdown("# 📈 Predição de Engajamento em Postagens de Marketing Digital")
 st.caption("Projeto Final EBAC × Semantix — Marketing Digital orientado por dados")
+
+
 
 # Carregar Dados e Treinar Modelo
 PROC_PATH = Path("data/processed/social_media_clean.csv")
@@ -50,7 +53,6 @@ def train_model(df: pd.DataFrame, target_col: str):
 
     model.fit(X, y)
     return model, num_cols, cat_cols
-
 
 
 # Carregar Base
@@ -120,10 +122,6 @@ st.divider()
 # Filtro dinâmico — gráficos interativos
 df_filt = df.copy()
 
-# Filtrar por tipo de mídia
-if "media_type" in df.columns:
-    df_filt = df_filt[df_filt["media_type"].astype(str).str.lower() == media_type]
-
 # Hora ±2h
 df_filt = df_filt[
     (df_filt["post_hour"] >= max(0, post_hour - 2)) &
@@ -136,9 +134,16 @@ df_filt = df_filt[
     (df_filt["caption_length"] <= caption_length + 50)
 ]
 
+# Número de hashtags ±3
+df_filt = df_filt[
+    (df_filt["num_hashtags"] >= max(0, num_hashtags - 3)) &
+    (df_filt["num_hashtags"] <= num_hashtags + 3)
+]
+
 st.caption(
-    f"📊 Visualizando dados de postagens semelhantes: tipo='{media_type_human}', "
-    f"hora≈{post_hour}, legenda≈{caption_length} caracteres."
+    f"📊 Visualizando dados de postagens com características semelhantes "
+    f"(hora≈{post_hour}, legenda≈{caption_length} caracteres, hashtags≈{num_hashtags}).\n"
+    f"O gráfico de mídia mantém todas as categorias para comparação global."
 )
 
 if len(df_filt) < 20:
@@ -146,28 +151,24 @@ if len(df_filt) < 20:
 
 
 
-# Insights Interativos
+# Análise Exploratória Interativa
 st.subheader("📈 Análise Exploratória Interativa")
-
 
 colA, colB = st.columns(2)
 
-# a) Média de engajamento por tipo de mídia
+# a) Média de engajamento por tipo de mídia (não filtrada)
 with colA:
     st.write("**Média de Engajamento por Tipo de Mídia**")
-    if "media_type" in df_filt.columns:
-        media_midia = df_filt.groupby("media_type")[target].mean().sort_values(ascending=False)
-        if len(media_midia) > 1:
-            st.bar_chart(media_midia)
-        else:
-            st.info("Apenas uma categoria de mídia encontrada — gráfico simplificado.")
+    if "media_type" in df.columns:
+        media_midia = df.groupby("media_type")[target].mean().sort_values(ascending=False)
+        st.bar_chart(media_midia)
     else:
         st.info("Coluna `media_type` não encontrada na base.")
 
-# b) Heatmap — engajamento por dia × hora
+# b) Heatmap — engajamento por dia × hora (filtrado)
 with colB:
     if set(["day_of_week", "post_hour"]).issubset(df_filt.columns):
-        st.write("**Mapa de Calor — Engajamento por Dia × Hora**")
+        st.write("**Mapa de Calor — Engajamento por Dia × Hora (filtrado)**")
         pivot = df_filt.pivot_table(values=target, index="day_of_week", columns="post_hour", aggfunc="mean")
         dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
         pivot.index = [dias[i] if i < len(dias) else i for i in range(len(pivot.index))]
@@ -191,6 +192,7 @@ if len(cols_vis) >= 2:
     st.dataframe(df_filt.nlargest(5, target)[cols_vis], use_container_width=True)
 else:
     st.info("Colunas necessárias não encontradas para exibir o ranking.")
+
 
 
 # Download da amostra filtrada
