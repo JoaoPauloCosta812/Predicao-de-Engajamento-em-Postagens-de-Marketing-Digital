@@ -184,10 +184,3 @@ if len(cols_vis) >= 2:
     st.dataframe(df.nlargest(5, target)[cols_vis], use_container_width=True)
 else:
     st.info("Colunas necessárias não encontradas para exibir o ranking de postagens.")
-
-# ----------------------------------------------------------
-# 🔧 Debug opcional
-# ----------------------------------------------------------
-with st.expander("⚙️ Debug (opcional)"):
-    st.write("Colunas esperadas pelo modelo:", cols_treino)
-    st.write("Colunas enviadas no exemplo:", list(exemplo.columns))
