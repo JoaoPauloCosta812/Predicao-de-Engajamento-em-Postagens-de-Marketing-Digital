@@ -7,27 +7,32 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor
 
-# Configurações da página
-st.set_page_config(page_title="Predição de Engajamento", page_icon="📊", layout="wide")
-st.markdown("# 📊 Predição de Engajamento em Postagens")
-st.caption("Projeto EBAC × Semantix — Marketing Digital orientado por dados")
 
+# Configurações da Página
+st.set_page_config(page_title="Predição de Engajamento", page_icon="📈", layout="wide")
+st.markdown("# 📈 Predição de Engajamento em Postagens de Marketing Digital")
+st.caption("Projeto Final EBAC × Semantix — Marketing Digital orientado por dados")
+
+# Carregar Dados e Treinar Modelo
 PROC_PATH = Path("data/processed/social_media_clean.csv")
 
-# Carregar dados e treinar modelo (cacheados)
 @st.cache_data
 def load_data(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     if "media_type" in df.columns:
         df["media_type"] = df["media_type"].astype(str).str.lower().str.strip()
         df["media_type"] = df["media_type"].replace({
-            "imagem": "image", "vídeo": "video", "video": "video",
-            "carrossel": "carousel", "carrosel": "carousel"
+            "imagem": "image",
+            "vídeo": "video",
+            "video": "video",
+            "carrossel": "carousel",
+            "carrosel": "carousel"
         })
     return df
 
 @st.cache_resource
 def train_model(df: pd.DataFrame, target_col: str):
+    """Treina pipeline RandomForest + pré-processamento"""
     y = df[target_col]
     num_cols = [c for c in df.select_dtypes(include=["int64","float64"]).columns if c != target_col]
     cat_cols = [c for c in df.select_dtypes(include=["object","category"]).columns]
@@ -46,6 +51,9 @@ def train_model(df: pd.DataFrame, target_col: str):
     model.fit(X, y)
     return model, num_cols, cat_cols
 
+
+
+# Carregar Base
 if not PROC_PATH.exists():
     st.error("❌ Arquivo não encontrado em `data/processed/social_media_clean.csv`. Execute o notebook 01.")
     st.stop()
@@ -57,6 +65,7 @@ model, num_cols, cat_cols = train_model(df, target)
 
 # Sidebar — Parâmetros do Post
 st.sidebar.header("🎛️ Parâmetros do Post")
+
 num_hashtags = st.sidebar.slider("🔢 Número de hashtags", 0, 20, 5, 1)
 caption_length = st.sidebar.slider("✍️ Tamanho da legenda (caracteres)", 0, 500, 120, 5)
 media_type_human = st.sidebar.selectbox("🖼️ Tipo de mídia", ["Imagem", "Vídeo", "Carrossel"])
@@ -66,11 +75,17 @@ dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Dom
 day_of_week_human = st.sidebar.selectbox("📅 Dia da semana", dias_semana)
 day_of_week = dias_semana.index(day_of_week_human)
 
+# Mapeia selects humanos
 media_type = {"imagem": "image", "vídeo": "video", "carrossel": "carousel"}[media_type_human.lower()]
 
-caption_bins = pd.cut([caption_length], bins=[-1,60,120,180,9999], labels=["curta","média","longa","muito_longa"])[0]
-periodo = pd.cut([post_hour], bins=[-1,5,11,17,21,24], labels=["madrugada","manhã","tarde","noite","tarde_da_noite"])[0]
+# Faixas derivadas automaticamente
+caption_bins = pd.cut([caption_length], bins=[-1,60,120,180,9999],
+                      labels=["curta","média","longa","muito_longa"])[0]
+periodo = pd.cut([post_hour], bins=[-1,5,11,17,21,24],
+                 labels=["madrugada","manhã","tarde","noite","tarde_da_noite"])[0]
 
+
+# DataFrame de entrada para predição
 exemplo = pd.DataFrame([{
     "num_hashtags": num_hashtags,
     "caption_length": caption_length,
@@ -87,7 +102,8 @@ for c in cols_treino:
         exemplo[c] = 0 if c in num_cols else ""
 exemplo = exemplo[cols_treino]
 
-# Predição
+
+# Predição do Modelo
 pred = float(model.predict(exemplo)[0])
 
 col1, col2, col3 = st.columns(3)
@@ -101,38 +117,67 @@ with col3:
 st.divider()
 
 
-# INSIGHTS EXTRAS — Mesclado com novas melhorias
-st.subheader("📊 Insights da Base de Dados")
+# Filtro dinâmico — gráficos interativos
+df_filt = df.copy()
+
+# Filtrar por tipo de mídia
+if "media_type" in df.columns:
+    df_filt = df_filt[df_filt["media_type"].astype(str).str.lower() == media_type]
+
+# Hora ±2h
+df_filt = df_filt[
+    (df_filt["post_hour"] >= max(0, post_hour - 2)) &
+    (df_filt["post_hour"] <= min(23, post_hour + 2))
+]
+
+# Legenda ±50 caracteres
+df_filt = df_filt[
+    (df_filt["caption_length"] >= max(0, caption_length - 50)) &
+    (df_filt["caption_length"] <= caption_length + 50)
+]
+
+st.caption(
+    f"📊 Visualizando dados de postagens semelhantes: tipo='{media_type_human}', "
+    f"hora≈{post_hour}, legenda≈{caption_length} caracteres."
+)
+
+if len(df_filt) < 20:
+    st.warning(f"⚠️ Apenas {len(df_filt)} registros encontrados para esse filtro — resultados podem ser menos representativos.")
+
+
+
+# Insights Interativos
+st.subheader("📈 Análise Exploratória Interativa")
+
+
 colA, colB = st.columns(2)
 
-# a) Média por tipo de mídia + aviso se única categoria
+# a) Média de engajamento por tipo de mídia
 with colA:
     st.write("**Média de Engajamento por Tipo de Mídia**")
-    if "media_type" in df.columns:
-        df_media = df.copy()
-        df_media["media_type"] = df_media["media_type"].astype(str).str.lower()
-        dist_midia = df_media["media_type"].value_counts()
-        media_midia = df_media.groupby("media_type")[target].mean().sort_values(ascending=False)
-        st.bar_chart(media_midia)
-        if dist_midia.nunique() == 1 or len(dist_midia) == 1:
-            st.info("⚠️ A base tem apenas um tipo de mídia; o gráfico exibirá uma única barra.")
+    if "media_type" in df_filt.columns:
+        media_midia = df_filt.groupby("media_type")[target].mean().sort_values(ascending=False)
+        if len(media_midia) > 1:
+            st.bar_chart(media_midia)
+        else:
+            st.info("Apenas uma categoria de mídia encontrada — gráfico simplificado.")
     else:
-        st.info("Coluna `media_type` não encontrada na base processada.")
+        st.info("Coluna `media_type` não encontrada na base.")
 
-# b) Heatmap com nomes de dias
+# b) Heatmap — engajamento por dia × hora
 with colB:
-    if set(["day_of_week", "post_hour"]).issubset(df.columns):
-        st.write("**Mapa de Calor — Engajamento por Dia da Semana × Hora**")
-        nomes_dias = {0:"Segunda",1:"Terça",2:"Quarta",3:"Quinta",4:"Sexta",5:"Sábado",6:"Domingo"}
-        pivot = df.pivot_table(values=target, index="day_of_week", columns="post_hour", aggfunc="mean")
-        pivot = pivot.rename(index=nomes_dias).reindex(index=list(nomes_dias.values()))
+    if set(["day_of_week", "post_hour"]).issubset(df_filt.columns):
+        st.write("**Mapa de Calor — Engajamento por Dia × Hora**")
+        pivot = df_filt.pivot_table(values=target, index="day_of_week", columns="post_hour", aggfunc="mean")
+        dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
+        pivot.index = [dias[i] if i < len(dias) else i for i in range(len(pivot.index))]
         st.dataframe(pivot.style.background_gradient(cmap="YlGnBu"), use_container_width=True)
     else:
-        st.info("Colunas `day_of_week` e/ou `post_hour` ausentes para o heatmap.")
+        st.info("Colunas necessárias não encontradas para o heatmap.")
 
 # c) Correlação com o alvo
 st.write("**Correlação com o Alvo (variáveis numéricas)**")
-num_df = df.select_dtypes("number").copy()
+num_df = df_filt.select_dtypes("number").copy()
 if target in num_df.columns:
     corr = num_df.corr()[[target]].sort_values(by=target, ascending=False)
     st.bar_chart(corr)
@@ -141,19 +186,17 @@ else:
 
 # d) Top 5 postagens
 st.write("**🏆 Top 5 Postagens com Maior Engajamento**")
-cols_vis = [c for c in ["media_type", "num_hashtags", "caption_length", "post_hour", "day_of_week", target] if c in df.columns]
+cols_vis = [c for c in ["media_type","num_hashtags","caption_length","post_hour","day_of_week",target] if c in df_filt.columns]
 if len(cols_vis) >= 2:
-    st.dataframe(df.nlargest(5, target)[cols_vis], use_container_width=True)
+    st.dataframe(df_filt.nlargest(5, target)[cols_vis], use_container_width=True)
 else:
-    st.info("Colunas necessárias não encontradas para exibir o ranking de postagens.")
+    st.info("Colunas necessárias não encontradas para exibir o ranking.")
 
-# e) Download de amostra CSV
-amostra = df.sample(min(500, len(df)), random_state=42)
+
+# Download da amostra filtrada
 st.download_button(
-    "⬇️ Baixar amostra (CSV)",
-    amostra.to_csv(index=False).encode("utf-8-sig"),
-    file_name="amostra_engajamento.csv",
-    mime="text/csv"
-)
-
-st.caption("💡 Ajuste horário, tipo de mídia e #hashtags para observar impacto no engajamento previsto.")
+    label="📥 Baixar amostra filtrada (CSV)",
+    data=df_filt.to_csv(index=False, encoding="utf-8-sig"),
+    file_name="amostra_filtrada.csv",
+    mime="text/csv",
+    use_container_width=True)
