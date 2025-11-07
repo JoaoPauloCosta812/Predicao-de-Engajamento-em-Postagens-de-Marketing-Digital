@@ -1,5 +1,5 @@
 # Predição de Engajamento em Postagens de Marketing Digital
-Projeto de Parceria | **EBAC × Semantix** — Entregável completo (README + Notebooks + Dashboard + Relatórios).
+Projeto de Parceria | **EBAC & Semantix**.
 
 ## Objetivo
 Construir um modelo de *Machine Learning* capaz de **prever engajamento** (curtidas/comentários/composto) em postagens
@@ -16,11 +16,8 @@ decisões de Marketing Digital com evidências.
 
 ## Dados
 - Preferencial: **Kaggle – Social Media Engagement Dataset** (ou similar com métricas de likes/comments/shares, hashtags, tipo de mídia, horário).
-- Caminho esperado: `data/raw/social_media_engagement.csv`.
-- **Como usar**: Faça o download no Kaggle e salve o arquivo CSV em `data/raw/` com o nome acima.
+- **Como usar**: Faça o download no Kaggle e salve o arquivo CSV com o nome `social_media_engagement.csv`.
 - **Fallback**: se o arquivo não existir, o código gera um **dataset sintético** para que o projeto rode 100% offline.
-
-> Briefing oficial do projeto EBAC/Semantix disponível no material: critérios e expectativas de entrega, avaliação e formato de feedback.
 
 ## Estrutura
 ```
